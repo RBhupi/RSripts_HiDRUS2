@@ -3,11 +3,23 @@
 # @brief We are making a parameter file for HiDRUS-2 using GCM data.
 #1. This programm reads a GCM daily rainfall and SLP, U-V data from the respective folders.
 #2. Reads events and Syn library + Extended Library files and search for the closest event for the mean accumulation.
-#3. Writes down all the required paramters for the HiDRUS-2 simulation.
+#3. Writes down all the required parameters for the HiDRUS-2 simulation.
 
 #@todo:
 # 1. Needs optimisation for the large array operations.
-# 2. add 360days calendar conversion
+
+# =============== Check input arguments=======================================
+args = commandArgs(trailingOnly=TRUE)
+model_names <- c('ACCESS1-0', 'ACCESS1-3', 'bcc-csm1', 'CMCC-CMS', 'CNRM-CM5', 'CSIRO-Mk3', 'GFDL-CM3', 'HadGEM2', 'inmcm4', 'IPSL-CM5B', 
+'MIROC5', 'MIROC-ESM', 'MPI-ESM', 'MRI-CGCM3')
+
+#check that model exists
+if(length(args)==0 || !match(args[1], model_names)){
+	print(paste(model_names))
+	stop("please provide valid model name as an argument.")
+}
+
+
 #===============================================================================
 library(ncdf4)
 library(Hmisc) #for find.match
@@ -18,13 +30,14 @@ options("scipen"=100) #force to print fixed numbers not scientific notations.
 #--------------------------------------------------------------------get.fPath()
 #get the full path of a file using pattern
 get.fPath<-function(path, pat){
-    path<-list.files(path=path, pattern = pat, recursive = TRUE, full.names = TRUE)
+    path<-list.files(path=path, pattern = pat, recursive = TRUE, full.names = TRUE, ignore.case = TRUE)
     print(path)
     if(length(path)!=1){
         stop("more/less than one file found.")
     }
     return(path)
 }
+
 
 #--------------------------------------------------------------get.start_count()
 #get start and count vectors for given lat-lon values.
@@ -92,15 +105,19 @@ make_outParNames<-function(ncName, varName){
     return(pname)
 }
 
-
-
 #=============================================================================== Program Starts
 #-----------------------------------------------------------------set file paths.
-setwd("/home/bhupendra/data/cmip5/temp_pardir/")
-gcm_dir <- "/home/bhupendra/data/cmip5" #directory to search GCM files
-model <- "CSIRO-Mk3" #"MIROC5"  # as in file names
-scenario <- "rcp85"   # c("Hist", "rcp45", "rcp85")
+gcm_dir <- "/g/data3/k10/bar565/h2sim/cmip5" #directory to search GCM files
+model <- args[1]
+scenario <- "Hist"   # c("Hist", "rcp45", "rcp85")
 city <- "MLB"        # c("MLB", "SYD", "ADL", "BRI")
+
+
+dirPath <- paste("/g/data3/k10/bar565/h2sim", city, scenario, model, "rundir", "pardir", sep="/")
+dir.create(dirPath, recursive =TRUE)
+setwd(dirPath)
+print(getwd())
+
 
 # This location will be use to read U-V and SLP data
 domain_lats <- c(-38, -38)
@@ -112,23 +129,22 @@ gcm_uFile <- get.fPath(gcm_dir, paste("uas", model, toupper(scenario), ".nc", se
 gcm_vFile <- get.fPath(gcm_dir, paste("vas", model, toupper(scenario), ".nc", sep = ".*"))
 
 #get list of all the rainlib and synLib files
-rainLib_File <- Sys.glob("~/sim_real/SimLibs/RainLib*2008-14_MLB.nc")
-synLib_File<- Sys.glob("~/sim_real/SimLibs/SynLib*2008-14_MLB.nc")
+rainLib_File <- Sys.glob("/g/data3/k10/bar565/h2sim/cmip5/SimLibs/RainLib*2008-14_MLB.nc")
+synLib_File<- Sys.glob("/g/data3/k10/bar565/h2sim/cmip5/SimLibs/SynLib*2008-14_MLB.nc")
 
 ens_id<-seq(1:100)
 
 min_rain=0.2
 #--------------------------------------set START and END dates of the simulation
-s_date <- as.Date("2040-01-01", format = "%Y-%m-%d", tz = "UTC")
+s_date <- as.Date("1994-01-01", format = "%Y-%m-%d", tz = "UTC")
 #s_date <- as.PCICt(as.POSIXct(s_date), cal = "360_day") #change it to model calendar
 
-e_date <- as.Date("2049-12-31", format = "%Y-%m-%d", tz = "UTC")
+e_date <- as.Date("2004-12-30", format = "%Y-%m-%d", tz = "UTC")
 #e_date <- as.PCICt(as.POSIXct(e_date), cal = "360_day")
 
 outFilePrefix <- paste("h2xprm", city, as.numeric(format(s_date, "%Y")),
                        as.numeric(format(e_date, "%Y")), model,
                        scenario, sep = "_")
-
 #-------------------------------------------------------read the daily rain file
 gcm_rainNC <- nc_open(gcm_rainFile)
 
@@ -295,4 +311,5 @@ nci_time <- (0.14 * rainSteps)-5
 dsize <- (0.04 * rainSteps)+0.5
 
 warning(paste("Required CPU time on NCI machine ~", ceiling(nci_time),
-              " hours. \nEstimated disc space ~", ceiling(dsize), "GB per file", sep=""))
+              " hours. \nEstimated disc space ~", round(dsize), "GB per file", sep=""))
+
