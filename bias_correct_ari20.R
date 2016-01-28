@@ -52,16 +52,26 @@ loc_name <- c("Melbourne Regional Office", "Melton", "Strath Creek",
               "Narre Warren North", "Toolangi")
 model_name <- c("MIROC5", "CSIRO-Mk3")
 city <- c("MLB", "SYD")
-fname_pat<- paste("raints_", model_name[1], ".*", city[1], ".*", location[2], ".*", sep="")
+fname_pat<- paste("raints_", model_name[1], ".*", city[1], ".*", location[2], ".nc", sep="")
 ts_fName<-get.fPath(tspath, fname_pat)
 ts_ncFile<-nc_open(ts_fName)
 ts <- ncvar_get(ts_ncFile, varid="rain")
 time <- ncvar_get(ts_ncFile, varid = "time")
+ensemble_id <- ncvar_get(ts_ncFile, varid = "ensemble_id")
+
+time_atts<-ncatt_get(ts_ncFile, varid="time")
+rain_atts <- ncatt_get(ts_ncFile, varid="rain")
+
+global_atts <- ncatt_get(ts_ncFile, varid=0)
 
 # read the ARI data for given loaction
 ari_fPath <-"/Users/bhupendra1/Dropbox/Bhupendra_shared/data/65_2_19700101_000000.ari_base.nc"
-ari_ncfile <- nc_open(fPath)
-indVec<- get.start_count(ari_ncfile, lons =c(144.55, 144.55), lats = c(44.45, 44.45), 
+ari_ncfile <- nc_open(ari_fPath)
+
+loc_lon <- rain_atts$location_lon
+loc_lat <- rain_atts$location_lat
+
+indVec<- get.start_count(ari_ncfile, lons =c(loc_lon, loc_lon), lats = c(loc_lat, loc_lat), 
                 lat_name = "y", lon_name = "x")
 
 ari_loc <- ncvar_get(ari_ncfile, varid="ari_base", start = indVec[[1]], count = indVec[[2]])
@@ -78,23 +88,34 @@ ts_bcARI20 <- local_bias * ts
 
 #Create the output file with .nc extension
 ofileName <- str_replace(ts_fName, pattern = ".nc", "_bc20ARI.nc")
-ofile<-nc_create(ofileName, vars =list(e_date, e_rainAccum, e_rainMax,
-                                                             e_rainDur, ts_prms))
 
-id <- ncdim_def("id", units = "", vals = c(1:1), unlim = T, 
+id_dim <- ncdim_def("id", units = "", vals = ensemble_id, unlim = T, 
                 longname = "identity number for ensemble member") 
 
-time <- ncdim_def("time", units = "seconds since", vals = c(1:1), unlim = T, 
-                longname = "identity number for ensemble member") 
+time_dim <- ncdim_def("time", units = time_atts$units, vals = time) 
 
-e_rainAccum <- ncvar_def("e_rainMean", units = "mm", dim = id, 
-                         longname = "total rainfall for the event" )
+rainbc_var <- ncvar_def("rain", units = rain_atts$units, dim = list(time_dim, id_dim), 
+                         longname = "rainfall intensity" )
+
+#creat a file and write variable attributes
+ofile<-nc_create(ofileName, vars =list(rainbc_var))
+ncatt_put(nc = ofile, rainbc_var, attname = "units", attval = rain_atts$units, prec = "text")
+ncatt_put(nc = ofile, rainbc_var, attname = "_FillValue", attval = rain_atts$`_FillValue`, prec = "float")
+
+# Write global attributes
+ncatt_put(nc = ofile, varid = 0, attname = "creator_name", attval = "Bhupendra Raut", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "creator_email", attval = "bhupendra.raut@monash.edu", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "institution", 
+          attval = "School of Earth, Atmosphere and Environment, Monash University", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "project", attval = "B1.1: Cities as Water Supply Catchments – 
+          Urban Rainfall in a changing climate", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "funding", attval = "CRC for Water Sensitive Cities", prec = "text")
 
 
-
-
-
-
+#write data
+ncvar_put(nc=ofile, varid=rainbc_var, vals = ts_bcARI20,
+          start = c(1, 1), count = c(length(time), length(ensemble_id)))
+nc_close(ofile)
 
 
 
