@@ -1,6 +1,6 @@
 #!---------------------------------------------------------------------------
 # @author Bhupendra Raut (www.baraut.info)
-# @brief This R script reads a netCDF file containing recurrent period for the region.
+# @brief This R script reads a netCDF file containing average recurrence interval for the region.
 # The TS data from nc2nc_ents programm are read and bias corrected using the ARI for 20 years.
 # the data is written back to netCDF file with suffix, "_bc20ARI".
 # The data is obtained from BoM and the contact person is Alan Seed or Mark Curtis.
@@ -8,7 +8,7 @@
 #@todo :
 #==========================================================================================
 library(ncdf4)
-
+library(stringr)
 
 #=============================================================================== Function Definions Starts
 #--------------------------------------------------------------------get.fPath()
@@ -101,15 +101,20 @@ rainbc_var <- ncvar_def("rain", units = rain_atts$units, dim = list(time_dim, id
 ofile<-nc_create(ofileName, vars =list(rainbc_var))
 ncatt_put(nc = ofile, rainbc_var, attname = "units", attval = rain_atts$units, prec = "text")
 ncatt_put(nc = ofile, rainbc_var, attname = "_FillValue", attval = rain_atts$`_FillValue`, prec = "float")
+ncatt_put(nc = ofile, rainbc_var, attname = "location_lat", attval = rain_atts$location_lat, prec = "float")
+ncatt_put(nc = ofile, rainbc_var, attname = "location_lon", attval = rain_atts$location_lon, prec = "float")
 
 # Write global attributes
-ncatt_put(nc = ofile, varid = 0, attname = "creator_name", attval = "Bhupendra Raut", prec = "text")
-ncatt_put(nc = ofile, varid = 0, attname = "creator_email", attval = "bhupendra.raut@monash.edu", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "creator_name", 
+          attval = "Bhupendra Raut", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "creator_email", 
+          attval = "bhupendra.raut@monash.edu", prec = "text")
 ncatt_put(nc = ofile, varid = 0, attname = "institution", 
           attval = "School of Earth, Atmosphere and Environment, Monash University", prec = "text")
-ncatt_put(nc = ofile, varid = 0, attname = "project", attval = "B1.1: Cities as Water Supply Catchments – 
-          Urban Rainfall in a changing climate", prec = "text")
-ncatt_put(nc = ofile, varid = 0, attname = "funding", attval = "CRC for Water Sensitive Cities", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "project", 
+          attval = "B1.1: Cities as Water Supply Catchments – Urban Rainfall in a changing climate", prec = "text")
+ncatt_put(nc = ofile, varid = 0, attname = "funding", 
+          attval = "CRC for Water Sensitive Cities", prec = "text")
 
 
 #write data
