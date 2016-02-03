@@ -12,7 +12,7 @@ library(stringr)
 library(plyr)
 
 ARI_interval <- c(1, 2, 5, 10, 20, 50, 100)
-ARI_interval_index <- 7 # choose (1, 2, 3, 4, 5, 6, 7) for interval =1, 2, 5, 10, 20, 50, 100
+ARI_interval_index <- 1 # choose (1, 2, 3, 4, 5, 6, 7) for interval =1, 2, 5, 10, 20, 50, 100
 #=============================================================================== Function Definions Starts
 #--------------------------------------------------------------get.start_count()
 #get start and count vectors for given lat-lon values.
@@ -20,7 +20,7 @@ ARI_interval_index <- 7 # choose (1, 2, 3, 4, 5, 6, 7) for interval =1, 2, 5, 10
 get.start_count<-function(ncfile, lons, lats, lat_name, lon_name){
   lon_ind <- start_count(ncfile, lons, lon_name)
   lat_ind <- start_count(ncfile, lats, lat_name)
-  out<-list(c(lon_ind[1], lat_ind[1], ARI_interval_index), c(lon_ind[2], lat_ind[2], 1))
+  out<-list(c(lon_ind[1], lat_ind[1], 1), c(lon_ind[2], lat_ind[2], 1))
   return(out)
 }
 
@@ -55,9 +55,9 @@ bias_correct<-function(ts_fName, mean_ari)
   loc_lat <- rain_atts$location_lat
 
   indVec<- get.start_count(ari_ncfile, lons =c(loc_lon, loc_lon), lats = c(loc_lat, loc_lat),
-                           lat_name = "y", lon_name = "x")
+                           lat_name = "lat", lon_name = "lon")
 
-  ari_loc <- ncvar_get(ari_ncfile, varid="ari_base", start = indVec[[1]], count = indVec[[2]])
+  ari_loc <- ncvar_get(ari_ncfile, varid="rain", start = indVec[[1]], count = indVec[[2]])
 
   #now computing bias
   local_bias <- as.vector(ari_loc/mean_ari)
@@ -67,8 +67,7 @@ bias_correct<-function(ts_fName, mean_ari)
 
 
   #Create the output file with .nc extension
-  suffix <- paste("_bc", ARI_interval[ARI_interval_index], "ARI.nc", sep="")
-  ofileName <- str_replace(ts_fName, pattern = ".nc", suffix)
+  ofileName <- str_replace(ts_fName, pattern = ".nc", "_BC-awap.nc")
 
   id_dim <- ncdim_def("id", units = "", vals = ensemble_id, unlim = T,
                       longname = "identity number for ensemble member")
@@ -114,10 +113,10 @@ ts_flist<-Sys.glob(fname_pat)
 
 
 # read the ARI data for whole region
-ari_fPath <-"/home/bhupendra/data/BoM/65_2_19700101_000000.ari_base.nc"
+ari_fPath <-"/home/bhupendra/data/BoM/arain1989-2010Mel_tmean.nc"
 ari_ncfile <- nc_open(ari_fPath)
 
-ari_map <- ncvar_get(ari_ncfile, varid = "ari_base", start=c(1, 1, ARI_interval_index), count = c(-1, -1, 1))
+ari_map <- ncvar_get(ari_ncfile, varid = "rain") #, start=c(1, 1, ARI_interval_index), count = c(-1, -1, 1))
 ari_mean <-mean(ari_map, na.rm = T)
 
 #apply function to all the files.
